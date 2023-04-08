@@ -4,14 +4,14 @@
   "parameters": {
     "adminUsername": {
       "type": "string",
-      "defaultValue": "admin",
+      "defaultValue": "superadmin",
       "metadata": {
         "description": "The username of the superuser"
       }
     },
     "adminPassword": {
       "type": "securestring",
-      "defaultValue": "password",
+      "defaultValue": "superadmin",
       "metadata": {
         "description": "The password of the superuser"
       }
