@@ -1,242 +1,216 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "adminUsername": {
-      "type": "string",
-      "defaultValue": "superadmin",
-      "metadata": {
-        "description": "The username of the superuser"
-      }
-    },
-    "adminPassword": {
-      "type": "securestring",
-      "defaultValue": "superadmin",
-      "metadata": {
-        "description": "The password of the superuser"
-      }
-    },
-    "vmName": {
-      "type": "string",
-      "defaultValue": "doccano-vm",
-      "metadata": {
-        "description": "The name of the virtual machine"
-      }
-    },
-    "vmSize": {
-      "type": "string",
-      "defaultValue": "Standard_B2s",
-      "metadata": {
-        "description": "The size of the virtual machine"
-      }
-    },
-    "vnetName": {
-      "type": "string",
-      "defaultValue": "doccano-vnet",
-      "metadata": {
-        "description": "The name of the virtual network"
-      }
-    },
-    "subnetName": {
-      "type": "string",
-      "defaultValue": "doccano-subnet",
-      "metadata": {
-        "description": "The name of the subnet"
-      }
-    },
-    "vnetCIDR": {
-      "type": "string",
-      "defaultValue": "10.0.0.0/16",
-      "metadata": {
-        "description": "The CIDR block of the virtual network"
-      }
-    },
-    "subnetCIDR": {
-      "type": "string",
-      "defaultValue": "10.0.1.0/24",
-      "metadata": {
-        "description": "The CIDR block of the subnet"
-      }
-    },
-    "resourceGroupName": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of the resource group"
-      }
-    }
-  },
-  "variables": {
-    "nsgName": "doccano-nsg"
-  },
-  "resources": [
-    {
-      "type": "Microsoft.Resources/resourceGroups",
-      "apiVersion": "2021-04-01",
-      "name": "[parameters('resourceGroupName')]",
-      "location": "[resourceGroup().location]"
-    },
-    {
-      "type": "Microsoft.Network/virtualNetworks",
-      "apiVersion": "2021-02-01",
-      "name": "[parameters('vnetName')]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "addressSpace": {
-          "addressPrefixes": [
-            "[parameters('vnetCIDR')]"
-          ]
+  "$schema":"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion":"1.0.0.0",
+  "parameters":{
+     "adminUsername":{
+        "type":"string",
+        "defaultValue":"admin",
+        "metadata":{
+           "description":"The username of the superuser"
         }
-      }
-    },
-    {
-      "type": "Microsoft.Network/virtualNetworks/subnets",
-      "apiVersion": "2021-02-01",
-      "name": "[concat(parameters('vnetName'), '/', parameters('subnetName'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
-      ],
-      "properties": {
-        "addressPrefix": "[parameters('subnetCIDR')]",
-        "networkSecurityGroup": {
-          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('resourceGroupName'), variables('nsgName'))]"
-}
-}
-},
-{
-"type": "Microsoft.Network/networkSecurityGroups",
-"apiVersion": "2021-02-01",
-"name": "[variables('nsgName')]",
-"location": "[resourceGroup().location]",
-"properties": {
-"securityRules": [
-{
-"name": "SSH",
-"properties": {
-"description": "Allow SSH traffic",
-"protocol": "Tcp",
-"sourcePortRange": "",
-"destinationPortRange": "22",
-"sourceAddressPrefix": "",
-"destinationAddressPrefix": "",
-"access": "Allow",
-"priority": 100,
-"direction": "Inbound"
-}
-},
-{
-"name": "HTTP",
-"properties": {
-"description": "Allow HTTP traffic",
-"protocol": "Tcp",
-"sourcePortRange": "",
-"destinationPortRange": "80",
-"sourceAddressPrefix": "",
-"destinationAddressPrefix": "",
-"access": "Allow",
-"priority": 200,
-"direction": "Inbound"
-}
-},
-{
-"name": "HTTPS",
-"properties": {
-"description": "Allow HTTPS traffic",
-"protocol": "Tcp",
-"sourcePortRange": "",
-"destinationPortRange": "443",
-"sourceAddressPrefix": "",
-"destinationAddressPrefix": "*",
-"access": "Allow",
-"priority": 300,
-"direction": "Inbound"
-}
-}
-]
-}
-},
-{
-"type": "Microsoft.Compute/virtualMachines",
-"apiVersion": "2021-03-01",
-"name": "[parameters('vmName')]",
-"location": "[resourceGroup().location]",
-"dependsOn": [
-"[resourceId('Microsoft.Network/networkSecurityGroups', parameters('resourceGroupName'), variables('nsgName'))]",
-"[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
-],
-"properties": {
-"hardwareProfile": {
-"vmSize": "[parameters('vmSize')]"
-},
-"storageProfile": {
-"imageReference": {
-"publisher": "Canonical",
-"offer": "UbuntuServer",
-"sku": "18.04-LTS",
-"version": "latest"
-},
-"osDisk": {
-"createOption": "FromImage"
-}
-},
-"networkProfile": {
-"networkInterfaces": [
-{
-"id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('vmName'))]"
-}
-]
-},
-"osProfile": {
-"computerName": "[parameters('vmName')]",
-"adminUsername": "[parameters('adminUsername')]",
-"adminPassword": "[parameters('adminPassword')]"
-}
-}
-},
-{
-"type": "Microsoft.Network/networkInterfaces",
-"apiVersion": "2021-02-01",
-"name": "[parameters('vmName')]",
-"location": "[resourceGroup().location]",
-"dependsOn": [
-"[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]",
-"[resourceId('Microsoft.Network/networkSecurityGroups', parameters('resourceGroupName'), variables('nsgName'))]"
-],
-"properties": {
-"ipConfigurations": [
-{
-        "name": "ipconfig",
-        "properties": {
-          "privateIPAllocationMethod": "Dynamic",
-          "subnet": {
-            "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
-          }
+     },
+     "adminPassword":{
+        "type":"securestring",
+        "defaultValue":"password",
+        "metadata":{
+           "description":"The password of the superuser"
         }
-      }
-    ]
-  }
-},
-{
-  "type": "Microsoft.Compute/virtualMachines/extensions",
-  "apiVersion": "2021-03-01",
-  "name": "[concat(parameters('vmName'), '/doccano-setup')]",
-  "location": "[resourceGroup().location]",
-  "dependsOn": [
-    "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
-  ],
-  "properties": {
-    "publisher": "Microsoft.Azure.Extensions",
-    "type": "CustomScript",
-    "typeHandlerVersion": "2.1",
-    "autoUpgradeMinorVersion": true,
-    "settings": {
-      "fileUris": [
-        "https://raw.githubusercontent.com/chakki-works/doccano/master/contrib/azure/azure-setup.sh"
-      ]
-    },
-    "protectedSettings": {
-      "commandToExecute": "[concat('bash azure-setup.sh ', parameters('adminUsername'), ' ', parameters('adminPassword'))]"
-    }
-  }
-}
-]
+     },
+     "vmName":{
+        "type":"string",
+        "defaultValue":"doccano-vm",
+        "metadata":{
+           "description":"The name of the virtual machine"
+        }
+     },
+     "vmSize":{
+        "type":"string",
+        "defaultValue":"Standard_B2s",
+        "metadata":{
+           "description":"The size of the virtual machine"
+        }
+     },
+     "vnetName":{
+        "type":"string",
+        "defaultValue":"doccano-vnet",
+        "metadata":{
+           "description":"The name of the virtual network"
+        }
+     },
+     "subnetName":{
+        "type":"string",
+        "defaultValue":"doccano-subnet",
+        "metadata":{
+           "description":"The name of the subnet"
+        }
+     },
+     "vnetCIDR":{
+        "type":"string",
+        "defaultValue":"10.0.0.0/16",
+        "metadata":{
+           "description":"The CIDR block of the virtual network"
+        }
+     },
+     "subnetCIDR":{
+        "type":"string",
+        "defaultValue":"10.0.1.0/24",
+        "metadata":{
+           "description":"The CIDR block of the subnet"
+        }
+     }
+  },
+  "variables":{
+     "nsgName":"doccano-nsg"
+  },
+  "resources":[
+     {
+        "type":"Microsoft.Resources/resourceGroups",
+        "apiVersion":"2021-04-01",
+        "name":"doccano-resource-group",
+        "location":"[resourceGroup().location]"
+     },
+     {
+        "type":"Microsoft.Network/virtualNetworks",
+        "apiVersion":"2021-02-01",
+        "name":"[parameters('vnetName')]",
+        "location":"[resourceGroup().location]",
+        "properties":{
+           "addressSpace":{
+              "addressPrefixes":[
+                 "[parameters('vnetCIDR')]"
+              ]
+           }
+        }
+     },
+     {
+        "type":"Microsoft.Network/virtualNetworks/subnets",
+        "apiVersion":"2021-02-01",
+        "name":"[concat(parameters('vnetName'), '/', parameters('subnetName'))]",
+        "dependsOn":[
+           "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        ],
+        "properties":{
+           "addressPrefix":"[parameters('subnetCIDR')]",
+           "networkSecurityGroup":{
+              "id":"[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+           }
+        }
+     },
+     {
+        "type":"Microsoft.Network/networkSecurityGroups",
+        "apiVersion":"2021-02-01",
+        "name":"[variables('nsgName')]",
+        "location":"[resourceGroup().location]",
+        "properties":{
+           "securityRules":[
+              {
+                 "name":"SSH",
+                 "properties":{
+                    "description":"Allow SSH",
+                    "protocol":"Tcp",
+                    "sourcePortRange":"",
+                    "destinationPortRange":"22",
+                    "sourceAddressPrefix":"",
+                    "destinationAddressPrefix":"",
+                    "access":"Allow",
+                    "priority":100,
+                    "direction":"Inbound"
+                 }
+              },
+              {
+                 "name":"HTTP",
+                 "properties":{
+                    "description":"Allow HTTP",
+                    "protocol":"Tcp",
+                    "sourcePortRange":"",
+                    "destinationPortRange":"80",
+                    "sourceAddressPrefix":"",
+                    "destinationAddressPrefix":"",
+                    "access":"Allow",
+                    "priority":200,
+                    "direction":"Inbound"
+                 }
+              },
+              {
+                 "name":"HTTPS",
+                 "properties":{
+                    "description":"Allow HTTPS",
+                    "protocol":"Tcp",
+                    "sourcePortRange":"",
+                    "destinationPortRange":"443",
+                    "sourceAddressPrefix":"",
+                    "destinationAddressPrefix":"*",
+                    "access":"Allow",
+                    "priority":300,
+                    "direction":"Inbound"
+                 }
+              }
+           ]
+        }
+     },
+     {
+        "type":"Microsoft.Compute/virtualMachines",
+        "apiVersion":"2021-03-01",
+        "name":"[parameters('vmName')]",
+        "location":"[resourceGroup().location]",
+        "dependsOn":[
+           "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+        ],
+        "properties":{
+           "hardwareProfile":{
+              "vmSize":"[parameters('vmSize')]"
+           },
+           "storageProfile":{
+              "imageReference":{
+                 "publisher":"Canonical",
+                 "offer":"UbuntuServer",
+                 "sku":"18.04-LTS",
+                 "version":"latest"
+              },
+              "osDisk":{
+                 "createOption":"FromImage"
+              }
+           },
+           "networkProfile":{
+              "networkInterfaces":[
+                 {
+                    "id":"[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('vmName'), '-nic'))]"
+                 }
+              ]
+           },
+           "osProfile":{
+              "computerName":"[parameters('vmName')]",
+              "adminUsername":"[parameters('adminUsername')]",
+              "adminPassword":"[parameters('adminPassword')]"
+           }
+        }
+     },
+     {
+        "type":"Microsoft.Network/networkInterfaces",
+        "apiVersion":"2021-02-01",
+        "name":"[concat(parameters('vmName'), '-nic')]",
+        "location":"[resourceGroup().location]",
+        "dependsOn":[
+           "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]",
+           "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+        ],
+        "properties":{
+           "ipConfigurations":[
+              {
+                 "name":"ipconfig",
+                 "properties":{
+                    "subnet":{
+                       "id":"[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]"
+                    },
+                    "privateIPAllocationMethod":"Dynamic",
+                    "publicIPAddress":null
+                 }
+              }
+           ],
+           "networkSecurityGroup":{
+              "id":"[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+           }
+        }
+     }
+  ]
 }
