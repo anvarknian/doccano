@@ -1,0 +1,89 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  admin_username: 'superadmin'
+  admin_password: 'superadmin'
+  vm_name: 'doccano-vm'
+  vm_size: 'Standard_B2s'
+  resource_group_name: 'doccano-rg'
+  location: 'eastus'
+  nic_name: 'doccano-nic'
+  vnet_name: 'doccano-vnet'
+  subnet_name: 'doccano-subnet'
+  public_ip_name: 'doccano-public-ip'
+  image_publisher: 'Canonical'
+  image_offer: 'UbuntuServer'
+  image_sku: '18.04-LTS'
+  image_version: 'latest'
+  ssh_pubkey: '<your-public-ssh-key>'
+  docker_compose_version: '1.29.2'
+
+steps:
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: '<your-subscription>'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      # Create a resource group
+      az group create --name $(resource_group_name) --location $(location)
+
+      # Create a virtual network with a subnet
+      az network vnet create \
+        --resource-group $(resource_group_name) \
+        --name $(vnet_name) \
+        --address-prefixes 10.0.0.0/16 \
+        --subnet-name $(subnet_name) \
+        --subnet-prefixes 10.0.1.0/24
+
+      # Create a public IP address
+      az network public-ip create \
+        --resource-group $(resource_group_name) \
+        --name $(public_ip_name) \
+        --sku Standard \
+        --allocation-method Static
+
+      # Create a network interface with a public IP address and a subnet
+      az network nic create \
+        --resource-group $(resource_group_name) \
+        --name $(nic_name) \
+        --vnet-name $(vnet_name) \
+        --subnet $(subnet_name) \
+        --public-ip-address $(public_ip_name) \
+        --accelerated-networking true
+
+      # Create a virtual machine
+      az vm create \
+        --resource-group $(resource_group_name) \
+        --name $(vm_name) \
+        --image $(image_publisher):$(image_offer):$(image_sku):$(image_version) \
+        --size $(vm_size) \
+        --authentication-type ssh \
+        --admin-username $(admin_username) \
+        --ssh-key-value "$(ssh_pubkey)" \
+        --nics $(nic_name) \
+        --custom-data '#!/bin/bash -ex
+          apt update -y
+          apt install -y docker.io docker-compose git
+          git clone https://github.com/doccano/doccano.git
+          cd doccano
+          cp docker/.env.example .env
+          sed -i s/admin/${admin_username}/g .env
+          sed -i s/password/${admin_password}/g .env
+          docker-compose -f docker/docker-compose.yml up -d'
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: '<your-subscription>'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      # Open port 80 for incoming traffic
+      az vm open-port --port 80 --resource-group $(resource_group_name) --name $(vm_name) --priority 1001 --protocol tcp
+
+      # Open port 22 for incoming traffic
+      az vm open-port --port 22 --resource-group $(resource_group_name) --name $(vm_name) --priority 1002 --protocol tcp
